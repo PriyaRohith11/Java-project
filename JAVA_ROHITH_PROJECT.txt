@@ -1,0 +1,273 @@
+import java.util.*;
+import java.text.DecimalFormat;
+
+// Custom exception for invalid user input
+class InvalidUserInputException extends Exception {
+    public InvalidUserInputException(String message) {
+        super(message);
+    }
+}
+
+// Abstract base class
+abstract class EmissionSource {
+    protected double emission; // in kilograms
+   
+    public abstract double calculateEmission();
+   
+    public double getEmission() {
+        return calculateEmission();
+    }
+}
+
+// Transport emission subclass
+class TransportEmission extends EmissionSource {
+    private String vehicleType;
+    private double kilometers;
+   
+    private static final Map<String, Double> EMISSION_FACTORS = Map.of(
+        "Petrol Car", 0.192,
+        "Diesel Car", 0.171,
+        "Motorbike", 0.072,
+        "Bus", 0.027,
+        "Train", 0.041,
+        "Flight", 0.255
+    );
+   
+    public TransportEmission(String vehicleType, double kilometers) {
+        this.vehicleType = vehicleType;
+        this.kilometers = kilometers;
+    }
+   
+    @Override
+    public double calculateEmission() {
+        return kilometers * EMISSION_FACTORS.getOrDefault(vehicleType, 0.0);
+    }
+   
+    @Override
+    public String toString() {
+        return String.format("Transport (%s, %.2f km)", vehicleType, kilometers);
+    }
+}
+
+// Electricity emission subclass
+class ElectricityEmission extends EmissionSource {
+    private double annualKWh;
+    private static final double GRID_FACTOR = 0.82; // kg CO₂ per kWh
+   
+    public ElectricityEmission(double annualKWh) {
+        this.annualKWh = annualKWh;
+    }
+   
+    @Override
+    public double calculateEmission() {
+        return annualKWh * GRID_FACTOR;
+    }
+   
+    @Override
+    public String toString() {
+        return String.format("Electricity (%.2f kWh)", annualKWh);
+    }
+}
+
+// Diet emission subclass
+class DietEmission extends EmissionSource {
+    private String dietType;
+   
+    private static final Map<String, Double> DIET_FACTORS = Map.of(
+        "Meat-heavy", 3200.0,
+        "Average", 2500.0,
+        "Vegetarian", 1700.0,
+        "Vegan", 1500.0
+    );
+   
+    public DietEmission(String dietType) {
+        this.dietType = dietType;
+    }
+   
+    @Override
+    public double calculateEmission() {
+        return DIET_FACTORS.getOrDefault(dietType, 0.0);
+    }
+   
+    @Override
+    public String toString() {
+        return String.format("Diet (%s)", dietType);
+    }
+}
+
+// Main application class
+public class CarbonFootprintApp {
+    private static final DecimalFormat df = new DecimalFormat("0.00");
+    private static final double CREDIT_PRICE_PER_TON = 850.0;
+    private static final Scanner scanner = new Scanner(System.in);
+   
+    private static Map<String, EmissionSource> emissionSources = new HashMap<>();
+   
+    public static void main(String[] args) {
+        boolean running = true;
+       
+        while (running) {
+            try {
+                displayMainMenu();
+                int choice = getIntInput("Choose option (1-5): ", 1, 5);
+               
+                switch (choice) {
+                    case 1:
+                        handleTransportData();
+                        break;
+                    case 2:
+                        handleElectricityData();
+                        break;
+                    case 3:
+                        handleDietData();
+                        break;
+                    case 4:
+                        calculateAndDisplayFootprint();
+                        break;
+                    case 5:
+                        running = false;
+                        System.out.println("Exiting program. Goodbye!");
+                        break;
+                }
+            } catch (InvalidUserInputException e) {
+                System.out.println("Error: " + e.getMessage());
+            }
+        }
+    }
+   
+    private static void displayMainMenu() {
+        System.out.println("\nMAIN MENU");
+        System.out.println("---------");
+        System.out.println("1. Enter / Modify Transport Data");
+        System.out.println("2. Enter / Modify Electricity Data");
+        System.out.println("3. Enter / Modify Diet Data");
+        System.out.println("4. Calculate Carbon Footprint & Offset Cost");
+        System.out.println("5. Exit");
+    }
+   
+    private static void handleTransportData() throws InvalidUserInputException {
+        System.out.println("\n-- Transport Data --");
+        System.out.println("Vehicle type?");
+        System.out.println("1. Petrol Car");
+        System.out.println("2. Diesel Car");
+        System.out.println("3. Motorbike");
+        System.out.println("4. Bus");
+        System.out.println("5. Train");
+        System.out.println("6. Flight");
+       
+        int vehicleChoice = getIntInput("Select vehicle (1-6): ", 1, 6);
+        String vehicleType = "";
+       
+        switch (vehicleChoice) {
+            case 1: vehicleType = "Petrol Car"; break;
+            case 2: vehicleType = "Diesel Car"; break;
+            case 3: vehicleType = "Motorbike"; break;
+            case 4: vehicleType = "Bus"; break;
+            case 5: vehicleType = "Train"; break;
+            case 6: vehicleType = "Flight"; break;
+        }
+       
+        double kilometers = getDoubleInput("Annual kilometres: ", 0);
+       
+        emissionSources.put("Transport", new TransportEmission(vehicleType, kilometers));
+        System.out.println("Saved.");
+    }
+   
+    private static void handleElectricityData() throws InvalidUserInputException {
+        System.out.println("\n-- Electricity Data --");
+        double annualKWh = getDoubleInput("Annual kWh consumed: ", 0);
+       
+        emissionSources.put("Electricity", new ElectricityEmission(annualKWh));
+        System.out.println("Saved.");
+    }
+   
+    private static void handleDietData() throws InvalidUserInputException {
+        System.out.println("\n-- Diet Data --");
+        System.out.println("Diet category?");
+        System.out.println("1. Meat-heavy");
+        System.out.println("2. Average");
+        System.out.println("3. Vegetarian");
+        System.out.println("4. Vegan");
+       
+        int dietChoice = getIntInput("Select diet (1-4): ", 1, 4);
+        String dietType = "";
+       
+        switch (dietChoice) {
+            case 1: dietType = "Meat-heavy"; break;
+            case 2: dietType = "Average"; break;
+            case 3: dietType = "Vegetarian"; break;
+            case 4: dietType = "Vegan"; break;
+        }
+       
+        emissionSources.put("Diet", new DietEmission(dietType));
+        System.out.println("Saved.");
+    }
+   
+    private static void calculateAndDisplayFootprint() {
+        if (emissionSources.isEmpty()) {
+            System.out.println("No data entered yet. Please enter some data first.");
+            return;
+        }
+       
+        System.out.println("\n==== Annual Footprint ====");
+       
+        double transportEmission = 0, electricityEmission = 0, dietEmission = 0;
+       
+        if (emissionSources.containsKey("Transport")) {
+            transportEmission = emissionSources.get("Transport").calculateEmission();
+            System.out.printf("Transport:     %s kg CO₂%n", df.format(transportEmission));
+        }
+       
+        if (emissionSources.containsKey("Electricity")) {
+            electricityEmission = emissionSources.get("Electricity").calculateEmission();
+            System.out.printf("Electricity:   %s kg CO₂%n", df.format(electricityEmission));
+        }
+       
+        if (emissionSources.containsKey("Diet")) {
+            dietEmission = emissionSources.get("Diet").calculateEmission();
+            System.out.printf("Diet:          %s kg CO₂%n", df.format(dietEmission));
+        }
+       
+        double totalEmission = transportEmission + electricityEmission + dietEmission;
+        double totalTons = totalEmission / 1000;
+        long offsetCost = Math.round(totalTons * CREDIT_PRICE_PER_TON);
+       
+        System.out.println("-------------------------------");
+        System.out.printf("Total:         %s kg CO₂  (≈%.2f t)%n", df.format(totalEmission), totalTons);
+        System.out.println();
+        System.out.printf("Approx. offset cost @ ₹850/t = ₹%d%n", offsetCost);
+        System.out.println("\n=======================");
+    }
+   
+    // Helper method to get integer input with validation
+    private static int getIntInput(String prompt, int min, int max) throws InvalidUserInputException {
+        while (true) {
+            try {
+                System.out.print(prompt);
+                int value = Integer.parseInt(scanner.nextLine());
+                if (value < min || value > max) {
+                    throw new InvalidUserInputException("Input must be between " + min + " and " + max);
+                }
+                return value;
+            } catch (NumberFormatException e) {
+                throw new InvalidUserInputException("Please enter a valid integer.");
+            }
+        }
+    }
+   
+    // Helper method to get double input with validation
+    private static double getDoubleInput(String prompt, double min) throws InvalidUserInputException {
+        while (true) {
+            try {
+                System.out.print(prompt);
+                double value = Double.parseDouble(scanner.nextLine());
+                if (value < min) {
+                    throw new InvalidUserInputException("Input must be greater than or equal to " + min);
+                }
+                return value;
+            } catch (NumberFormatException e) {
+                throw new InvalidUserInputException("Please enter a valid number.");
+            }
+        }
+    }
+}
